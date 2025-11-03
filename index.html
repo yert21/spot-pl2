@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+		<script type="text/javascript" src="app.js"></script>
+		<link rel="stylesheet" href="app.css" type="text/css" />
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spotify Search Player</title>
+<style>
+body {
+font-family: 'Poppins', sans-serif;
+background: #121212;
+color: white;
+text-align: center;
+margin: 0;
+padding: 0;
+}
+h1 {
+margin-top: 20px;
+color: #1DB954;
+}
+input {
+width: 60%;
+padding: 10px;
+border-radius: 25px;
+border: none;
+margin-top: 20px;
+font-size: 1em;
+}
+button {
+background: #1DB954;
+color: white;
+border: none;
+padding: 10px 20px;
+border-radius: 25px;
+cursor: pointer;
+margin-left: 10px;
+font-size: 1em;
+}
+.results {
+display: flex;
+flex-wrap: wrap;
+justify-content: center;
+margin-top: 30px;
+gap: 20px;
+}
+.track {
+background: #181818;
+border-radius: 10px;
+width: 200px;
+padding: 10px;
+transition: transform 0.2s;
+}
+.track:hover {
+transform: scale(1.05);
+}
+img {
+width: 100%;
+border-radius: 10px;
+}
+audio {
+width: 100%;
+margin-top: 10px;
+}
+</style>
+</head>
+<body>
+<h1>Spotify Search Player 🎵</h1>
+<div>
+<input type="text" id="query" placeholder="Search for a song or artist...">
+<button onclick="search()">Search</button>
+</div>
+<div class="results" id="results"></div>
+
+<script>
+const clientId = "099d1840837545d48030a17fabb35754"; // Replace this with your Spotify App Client ID
+const redirectUri = window.location.href;
+let accessToken = null;
+
+// Get Access Token via Implicit Grant Flow
+function getToken() {
+const hash = window.location.hash;
+if (hash && hash.includes("access_token")) {
+accessToken = new URLSearchParams(hash.substring(1)).get("access_token");
+window.history.pushState("", "", redirectUri.split('#')[0]);
+} else if (!accessToken) {
+const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user-read-private`;
+window.location.href = authUrl;
+}
+}
+
+async function search() {
+const q = document.getElementById("query").value;
+if (!q) return;
+const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=10`, {
+headers: { Authorization: `Bearer ${accessToken}` }
+});
+const data = await res.json();
+showResults(data.tracks.items);
+}
+
+function showResults(tracks) {
+const container = document.getElementById("results");
+container.innerHTML = "";
+tracks.forEach(track => {
+const div = document.createElement("div");
+div.className = "track";
+div.innerHTML = `
+<img src="${track.album.images[0]?.url}" alt="album art">
+<h3>${track.name}</h3>
+<p>${track.artists.map(a => a.name).join(", ")}</p>
+${track.preview_url ? `<audio controls src="${track.preview_url}"></audio>` : "<p>No preview available</p>"}
+`;
+container.appendChild(div);
+});
+}
+
+getToken();
+</script>
+</body>
+</html>
