@@ -81,17 +81,22 @@ let accessToken = null;
 
 // Get Access Token via Implicit Grant Flow
 function getToken() {
+	// 1️⃣ Get token from URL hash
 	const hash = window.location.hash;
-	if (hash && hash.includes("access_token")) {
+	if (hash.includes("access_token")) {
 		accessToken = new URLSearchParams(hash.substring(1)).get("access_token");
-		window.history.replaceState({}, document.title, window.location.pathname);
-	} 
-	else if (!accessToken) {
-const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user-read-private`;
-window.location.href = authUrl;
-	}
-}
 
+		// 2️⃣ Remove the hash so page doesn't reload infinitely
+		window.history.replaceState(null, null, window.location.pathname);
+
+		// 3️⃣ Optional: save token to localStorage to persist
+		localStorage.setItem("spotify_token", accessToken);
+	} else {
+		// 4️⃣ Try getting token from localStorage
+		accessToken = localStorage.getItem("spotify_token");
+	}
+
+// 5️⃣ If no token anywhere, redirect to Spotify login
 async function search() {
 const q = document.getElementById("query").value;
 if (!q) return;
