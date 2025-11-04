@@ -5,15 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Spotify Search Embed Player</title>
 <style>
-body { font-family: 'Poppins', sans-serif; background:#121212; color:white; text-align:center; margin:0; padding:0;}
+body { font-family:'Poppins', sans-serif; background:#121212; color:white; text-align:center; margin:0; padding:0; }
 h1 { margin-top:20px; color:#1DB954; }
-input { width:60%; padding:10px; border-radius:25px; border:none; margin-top:20px; font-size:1em;}
-button { background:#1DB954; color:white; border:none; padding:10px 20px; border-radius:25px; cursor:pointer; margin-left:10px; font-size:1em;}
-.results { display:flex; flex-wrap:wrap; justify-content:center; margin-top:30px; gap:20px;}
+input { width:60%; padding:10px; border-radius:25px; border:none; margin-top:20px; font-size:1em; }
+button { background:#1DB954; color:white; border:none; padding:10px 20px; border-radius:25px; cursor:pointer; margin-left:10px; font-size:1em; }
+.results { display:flex; flex-wrap:wrap; justify-content:center; margin-top:30px; gap:20px; }
 .track { background:#181818; border-radius:10px; width:300px; padding:10px; transition:transform 0.2s; }
 .track:hover { transform:scale(1.03); }
 .track img { width:100%; border-radius:10px; margin-bottom:10px; }
 iframe { border-radius:10px; margin-top:10px; }
+audio { width:100%; margin-top:10px; border-radius:10px; }
 </style>
 </head>
 <body>
@@ -26,22 +27,29 @@ iframe { border-radius:10px; margin-top:10px; }
 <div class="results" id="results"></div>
 
 <script>
-const clientId = "099d1840837545d48030a17fabb35754"; // your Spotify app client ID
-const redirectUri = "https://yert21.github.io/spot-pl2/";
+const clientId = "099d1840837545d48030a17fabb35754"; // Your Spotify app Client ID
+const redirectUri = "https://yert21.github.io/spot-pl2/"; // Your GitHub Pages URL
 let accessToken = null;
 
-// Get token from URL or localStorage (PKCE simplified for GitHub Pages)
+// ---------- LOGIN / TOKEN ----------
 function getToken() {
 const hash = window.location.hash;
 if (hash.includes("access_token")) {
+// Got token from redirect
 accessToken = new URLSearchParams(hash.substring(1)).get("access_token");
 localStorage.setItem("spotify_token", accessToken);
 window.location.hash = "";
 } else {
 accessToken = localStorage.getItem("spotify_token");
+if (!accessToken) {
+// Force login if no token
+const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user-read-private%20user-read-email`;
+window.location.href = authUrl;
+}
 }
 }
 
+// ---------- SEARCH ----------
 async function search() {
 const q = document.getElementById("query").value;
 if (!q || !accessToken) return;
@@ -49,6 +57,13 @@ if (!q || !accessToken) return;
 const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=10`, {
 headers: { Authorization: `Bearer ${accessToken}` }
 });
+
+if (!res.ok) {
+alert("Search failed. You may need to log in again.");
+localStorage.removeItem("spotify_token");
+window.location.reload();
+return;
+}
 
 const data = await res.json();
 showResults(data.tracks.items);
@@ -66,14 +81,14 @@ div.innerHTML = `
 <h3>${track.name}</h3>
 <p>${track.artists.map(a => a.name).join(", ")}</p>
 ${track.preview_url
-? `<audio controls src="${track.preview_url}" style="width:100%; margin-top:10px;"></audio>`
+? `<audio controls src="${track.preview_url}"></audio>`
 : `<iframe src="https://open.spotify.com/embed/track/${track.id}" width="100%" height="80" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`}
 `;
 container.appendChild(div);
 });
 }
 
-// Initialize
+// ---------- INIT ----------
 getToken();
 </script>
 
