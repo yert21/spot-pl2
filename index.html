@@ -1,10 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-		<script type="text/javascript" src="app.js"></script>
-		<link rel="stylesheet" href="app.css" type="text/css" />
-
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Spotify Search Player</title>
@@ -75,28 +71,32 @@ margin-top: 10px;
 <div class="results" id="results"></div>
 
 <script>
-const clientId = "099d1840837545d48030a17fabb35754"; // Replace this with your Spotify App Client ID
-const redirectUri = "https://yert21.github.io/spot-pl2/";
+const clientId = "099d1840837545d48030a17fabb35754"; // Your Spotify App Client ID
+const redirectUri = "https://yert21.github.io/spot-pl2/"; // Must match Spotify Dashboard
 let accessToken = null;
 
 // Get Access Token via Implicit Grant Flow
 function getToken() {
-	// 1️⃣ Get token from URL hash
-	const hash = window.location.hash;
-	if (hash.includes("access_token")) {
-		accessToken = new URLSearchParams(hash.substring(1)).get("access_token");
+const hash = window.location.hash;
+if (hash.includes("access_token")) {
+accessToken = new URLSearchParams(hash.substring(1)).get("access_token");
+// Remove hash to prevent infinite reload
+window.history.replaceState(null, null, window.location.pathname);
+// Save token for future reloads
+localStorage.setItem("spotify_token", accessToken);
+} else {
+// Try localStorage
+accessToken = localStorage.getItem("spotify_token");
+}
 
-		// 2️⃣ Remove the hash so page doesn't reload infinitely
-		window.history.replaceState(null, null, window.location.pathname);
+// If no token anywhere, redirect to Spotify login
+if (!accessToken) {
+const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user-read-private`;
+window.location.href = authUrl;
+}
+}
 
-		// 3️⃣ Optional: save token to localStorage to persist
-		localStorage.setItem("spotify_token", accessToken);
-	} else {
-		// 4️⃣ Try getting token from localStorage
-		accessToken = localStorage.getItem("spotify_token");
-	}
-
-// 5️⃣ If no token anywhere, redirect to Spotify login
+// Search function
 async function search() {
 const q = document.getElementById("query").value;
 if (!q) return;
@@ -107,6 +107,7 @@ const data = await res.json();
 showResults(data.tracks.items);
 }
 
+// Display search results
 function showResults(tracks) {
 const container = document.getElementById("results");
 container.innerHTML = "";
@@ -123,6 +124,7 @@ container.appendChild(div);
 });
 }
 
+// Initialize
 getToken();
 </script>
 </body>
