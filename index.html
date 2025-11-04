@@ -81,14 +81,15 @@ let accessToken = null;
 
 // Get Access Token via Implicit Grant Flow
 function getToken() {
-const hash = window.location.hash;
-if (hash && hash.includes("access_token")) {
-accessToken = new URLSearchParams(hash.substring(1)).get("access_token");
-window.history.pushState("", "", redirectUri.split('#')[0]);
-} else if (!accessToken) {
+	const hash = window.location.hash;
+	if (hash && hash.includes("access_token")) {
+		accessToken = new URLSearchParams(hash.substring(1)).get("access_token");
+		window.history.replaceState({}, document.title, window.location.pathname);
+	} 
+	else if (!accessToken) {
 const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user-read-private`;
 window.location.href = authUrl;
-}
+	}
 }
 
 async function search() {
