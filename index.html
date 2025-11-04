@@ -3,149 +3,79 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Spotify Full Player</title>
+<title>Spotify Search Embed Player</title>
 <style>
 body { font-family: 'Poppins', sans-serif; background:#121212; color:white; text-align:center; margin:0; padding:0;}
 h1 { margin-top:20px; color:#1DB954; }
 input { width:60%; padding:10px; border-radius:25px; border:none; margin-top:20px; font-size:1em;}
 button { background:#1DB954; color:white; border:none; padding:10px 20px; border-radius:25px; cursor:pointer; margin-left:10px; font-size:1em;}
 .results { display:flex; flex-wrap:wrap; justify-content:center; margin-top:30px; gap:20px;}
-.track { background:#181818; border-radius:10px; width:200px; padding:10px; transition:transform 0.2s; cursor:pointer;}
-.track:hover { transform:scale(1.05); }
-img { width:100%; border-radius:10px;}
-#player-bar { background:#181818; padding:10px; position:fixed; bottom:0; width:100%; display:flex; align-items:center; justify-content:center; gap:20px; display:none;}
-#player-bar img { width:50px; height:50px; border-radius:5px;}
-#player-bar button { background:#1DB954; padding:5px 10px; border-radius:5px; border:none; cursor:pointer;}
+.track { background:#181818; border-radius:10px; width:300px; padding:10px; transition:transform 0.2s; }
+.track:hover { transform:scale(1.03); }
+.track img { width:100%; border-radius:10px; margin-bottom:10px; }
+iframe { border-radius:10px; margin-top:10px; }
 </style>
 </head>
 <body>
-<h1>Spotify Full Player 🎵</h1>
+
+<h1>Spotify Embed Player 🎵</h1>
 <div>
 <input type="text" id="query" placeholder="Search for a song or artist...">
-<button id="searchBtn" disabled>Search</button>
+<button onclick="search()">Search</button>
 </div>
 <div class="results" id="results"></div>
 
-<div id="player-bar">
-<img id="track-img" src="" alt="album art">
-<span id="track-name">Track</span>
-<button onclick="prevTrack()">⏮️</button>
-<button onclick="togglePlay()">⏯️</button>
-<button onclick="nextTrack()">⏭️</button>
-</div>
-
-<script src="https://sdk.scdn.co/spotify-player.js"></script>
 <script>
-// ---------- CONFIG ----------
-const clientId = "099d1840837545d48030a17fabb35754";
+const clientId = "099d1840837545d48030a17fabb35754"; // your Spotify app client ID
 const redirectUri = "https://yert21.github.io/spot-pl2/";
 let accessToken = null;
-let codeVerifier = null;
-let player;
-let deviceId;
-let isPlayerReady = false;
 
-// ---------- PKCE LOGIN ----------
-function generateRandomString(length) {
-const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-let result = '';
-for (let i=0;i<length;i++) result += chars.charAt(Math.floor(Math.random()*chars.length));
-return result;
+// Get token from URL or localStorage (PKCE simplified for GitHub Pages)
+function getToken() {
+const hash = window.location.hash;
+if (hash.includes("access_token")) {
+accessToken = new URLSearchParams(hash.substring(1)).get("access_token");
+localStorage.setItem("spotify_token", accessToken);
+window.location.hash = "";
+} else {
+accessToken = localStorage.getItem("spotify_token");
+}
 }
 
-async function sha256(plain) {
-const encoder = new TextEncoder();
-const data = encoder.encode(plain);
-const hash = await crypto.subtle.digest('SHA-256', data);
-return btoa(String.fromCharCode(...new Uint8Array(hash))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-async function login() {
-codeVerifier = generateRandomString(128);
-localStorage.setItem('code_verifier', codeVerifier);
-const codeChallenge = await sha256(codeVerifier);
-
-const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&code_challenge_method=S256&code_challenge=${codeChallenge}&scope=streaming user-read-private user-read-email user-modify-playback-state user-read-playback-state`;
-name: 'Web Player Chromebook',
-getOAuthToken: cb => { cb(accessToken); },
-volume: 0.5
-});
-
-player.addListener('ready', ({ device_id }) => {
-console.log('Player ready! Device ID:', device_id);
-deviceId = device_id;
-isPlayerReady = true;
-document.getElementById('searchBtn').disabled = false; // enable search now
-document.getElementById('player-bar').style.display = 'flex';
-});
-
-player.addListener('player_state_changed', state => {
-if (!state) return;
-const track = state.track_window.current_track;
-document.getElementById('track-img').src = track.album.images[0].url;
-document.getElementById('track-name').innerText = track.name + ' - ' + track.artists.map(a => a.name).join(', ');
-});
-
-player.connect();
-};
-}
-
-// ---------- SEARCH ----------
 async function search() {
-const q = document.getElementById('query').value;
+const q = document.getElementById("query").value;
 if (!q || !accessToken) return;
 
 const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=10`, {
 headers: { Authorization: `Bearer ${accessToken}` }
 });
+
 const data = await res.json();
 showResults(data.tracks.items);
 }
 
 function showResults(tracks) {
-const container = document.getElementById('results');
-container.innerHTML = '';
+const container = document.getElementById("results");
+container.innerHTML = "";
+
 tracks.forEach(track => {
-const div = document.createElement('div');
-div.className = 'track';
+const div = document.createElement("div");
+div.className = "track";
 div.innerHTML = `
-<img src="${track.album.images[0]?.url}" alt="album art">
+<img src="${track.album.images[0]?.url}" alt="Album Art">
 <h3>${track.name}</h3>
-<p>${track.artists.map(a => a.name).join(', ')}</p>
+<p>${track.artists.map(a => a.name).join(", ")}</p>
+${track.preview_url
+? `<audio controls src="${track.preview_url}" style="width:100%; margin-top:10px;"></audio>`
+: `<iframe src="https://open.spotify.com/embed/track/${track.id}" width="100%" height="80" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`}
 `;
-div.onclick = () => playTrack(track.uri);
 container.appendChild(div);
 });
 }
 
-// ---------- PLAYBACK CONTROLS ----------
-async function playTrack(uri) {
-if (!isPlayerReady) {
-alert("Player is not ready yet. Wait a few seconds and try again!");
-return;
-}
-await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-method: 'PUT',
-body: JSON.stringify({ uris: [uri] }),
-headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` }
-});
-}
-
-function togglePlay() {
-if (player) player.togglePlay();
-}
-
-function nextTrack() {
-if (player) player.nextTrack();
-}
-
-function prevTrack() {
-if (player) player.previousTrack();
-}
-
-// ---------- START ----------
-init();
-document.getElementById('searchBtn').addEventListener('click', search);
+// Initialize
+getToken();
 </script>
+
 </body>
 </html>
