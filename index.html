@@ -13,7 +13,7 @@ button { background:#1DB954; color:white; border:none; padding:10px 20px; border
 .track { background:#181818; border-radius:10px; width:200px; padding:10px; transition:transform 0.2s; cursor:pointer;}
 .track:hover { transform:scale(1.05); }
 img { width:100%; border-radius:10px;}
-#player-bar { background:#181818; padding:10px; position:fixed; bottom:0; width:100%; display:flex; align-items:center; justify-content:center; gap:20px;}
+#player-bar { background:#181818; padding:10px; position:fixed; bottom:0; width:100%; display:flex; align-items:center; justify-content:center; gap:20px; display:none;}
 #player-bar img { width:50px; height:50px; border-radius:5px;}
 #player-bar button { background:#1DB954; padding:5px 10px; border-radius:5px; border:none; cursor:pointer;}
 </style>
@@ -22,11 +22,11 @@ img { width:100%; border-radius:10px;}
 <h1>Spotify Full Player 🎵</h1>
 <div>
 <input type="text" id="query" placeholder="Search for a song or artist...">
-<button onclick="search()">Search</button>
+<button id="searchBtn" disabled>Search</button>
 </div>
 <div class="results" id="results"></div>
 
-<div id="player-bar" style="display:none;">
+<div id="player-bar">
 <img id="track-img" src="" alt="album art">
 <span id="track-name">Track</span>
 <button onclick="prevTrack()">⏮️</button>
@@ -43,6 +43,7 @@ let accessToken = null;
 let codeVerifier = null;
 let player;
 let deviceId;
+let isPlayerReady = false;
 
 // ---------- PKCE LOGIN ----------
 function generateRandomString(length) {
@@ -64,54 +65,18 @@ codeVerifier = generateRandomString(128);
 localStorage.setItem('code_verifier', codeVerifier);
 const codeChallenge = await sha256(codeVerifier);
 
-const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&code_challenge_method=S256&code_challenge=${codeChallenge}&scope=user-read-private streaming user-modify-playback-state user-read-playback-state`;
-window.location.href = authUrl;
-}
-
-async function getAccessToken(code) {
-const verifier = localStorage.getItem('code_verifier');
-const body = new URLSearchParams({
-grant_type: 'authorization_code',
-code: code,
-redirect_uri: redirectUri,
-client_id: clientId,
-code_verifier: verifier
-});
-
-const res = await fetch('https://accounts.spotify.com/api/token', {
-method: 'POST',
-headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-body: body
-});
-
-const data = await res.json();
-accessToken = data.access_token;
-localStorage.setItem('access_token', accessToken);
-}
-
-// ---------- INIT ----------
-async function init() {
-const urlParams = new URLSearchParams(window.location.search);
-const code = urlParams.get('code');
-if (code) {
-await getAccessToken(code);
-window.history.replaceState({}, document.title, "/");
-} else {
-accessToken = localStorage.getItem('access_token');
-if (!accessToken) login();
-}
-
-// Initialize Web Playback SDK
-window.onSpotifyWebPlaybackSDKReady = () => {
-player = new Spotify.Player({
-name: 'Web Player',
+const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&code_challenge_method=S256&code_challenge=${codeChallenge}&scope=streaming user-read-private user-read-email user-modify-playback-state user-read-playback-state`;
+name: 'Web Player Chromebook',
 getOAuthToken: cb => { cb(accessToken); },
 volume: 0.5
 });
 
 player.addListener('ready', ({ device_id }) => {
-console.log('Ready with Device ID', device_id);
+console.log('Player ready! Device ID:', device_id);
 deviceId = device_id;
+isPlayerReady = true;
+document.getElementById('searchBtn').disabled = false; // enable search now
+document.getElementById('player-bar').style.display = 'flex';
 });
 
 player.addListener('player_state_changed', state => {
@@ -119,14 +84,11 @@ if (!state) return;
 const track = state.track_window.current_track;
 document.getElementById('track-img').src = track.album.images[0].url;
 document.getElementById('track-name').innerText = track.name + ' - ' + track.artists.map(a => a.name).join(', ');
-document.getElementById('player-bar').style.display = 'flex';
 });
 
 player.connect();
 };
 }
-
-init();
 
 // ---------- SEARCH ----------
 async function search() {
@@ -158,7 +120,10 @@ container.appendChild(div);
 
 // ---------- PLAYBACK CONTROLS ----------
 async function playTrack(uri) {
-if (!deviceId) return alert("Player not ready yet!");
+if (!isPlayerReady) {
+alert("Player is not ready yet. Wait a few seconds and try again!");
+return;
+}
 await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
 method: 'PUT',
 body: JSON.stringify({ uris: [uri] }),
@@ -167,16 +132,20 @@ headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${access
 }
 
 function togglePlay() {
-player.togglePlay();
+if (player) player.togglePlay();
 }
 
 function nextTrack() {
-player.nextTrack();
+if (player) player.nextTrack();
 }
 
 function prevTrack() {
-player.previousTrack();
+if (player) player.previousTrack();
 }
+
+// ---------- START ----------
+init();
+document.getElementById('searchBtn').addEventListener('click', search);
 </script>
 </body>
 </html>
